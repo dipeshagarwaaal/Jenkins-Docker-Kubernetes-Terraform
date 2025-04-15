@@ -32,7 +32,7 @@ pipeline {
 
         stage('Build Docker Image') {
             steps {
-                bat "docker build -t %ACR_LOGIN_SERVER%/%IMAGE_NAME%:%IMAGE_TAG% -f WebApiJenkins/Dockerfile WebApiJenkins"
+                bat "docker build -t ${ACR_LOGIN_SERVER}/${IMAGE_NAME}:${IMAGE_TAG} -f WebApiJenkins/Dockerfile WebApiJenkins"
             }
         }
 
@@ -45,7 +45,7 @@ pipeline {
                     "ARM_TENANT_ID=${env.ARM_TENANT_ID}"
                 ]) {
                     bat """
-                    cd %TF_WORKING_DIR%
+                    cd ${TF_WORKING_DIR}
                     terraform init
                     """
                 }
@@ -61,7 +61,7 @@ pipeline {
                     "ARM_TENANT_ID=${env.ARM_TENANT_ID}"
                 ]) {
                     bat """
-                    cd %TF_WORKING_DIR%
+                    cd ${TF_WORKING_DIR}
                     terraform plan -out=tfplan
                     """
                 }
@@ -77,37 +77,43 @@ pipeline {
                     "ARM_TENANT_ID=${env.ARM_TENANT_ID}"
                 ]) {
                     bat """
-                    cd %TF_WORKING_DIR%
+                    cd ${TF_WORKING_DIR}
                     terraform apply -auto-approve tfplan
                     """
                 }
             }
         }
 
-        stage('Login to ACR using SP') {
+        stage('Login to Azure using SP') {
             steps {
                 bat """
                 az login --service-principal ^
-                  --username %ARM_CLIENT_ID% ^
-                  --password %ARM_CLIENT_SECRET% ^
-                  --tenant %ARM_TENANT_ID%
+                  --username ${ARM_CLIENT_ID} ^
+                  --password ${ARM_CLIENT_SECRET} ^
+                  --tenant ${ARM_TENANT_ID}
+                """
+            }
+        }
 
-                az acr login --name %ACR_NAME%
+        stage('Login to ACR') {
+            steps {
+                bat """
+                az acr login --name ${ACR_NAME}
                 """
             }
         }
 
         stage('Push Docker Image to ACR') {
             steps {
-                bat "docker push %ACR_LOGIN_SERVER%/%IMAGE_NAME%:%IMAGE_TAG%"
+                bat "docker push ${ACR_LOGIN_SERVER}/${IMAGE_NAME}:${IMAGE_TAG}"
             }
         }
 
         stage('Get AKS Credentials') {
             steps {
                 bat """
-                az aks get-credentials --resource-group %RESOURCE_GROUP% ^
-                --name %AKS_CLUSTER% --overwrite-existing
+                az aks get-credentials --resource-group ${RESOURCE_GROUP} ^
+                --name ${AKS_CLUSTER} --overwrite-existing
                 """
             }
         }
