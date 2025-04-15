@@ -2,14 +2,19 @@ pipeline {
     agent any
 
     environment {
-        ACR_NAME = 'dipeshacr01'
-        AZURE_CREDENTIALS_ID = 'jenkins-pipeline-sp'
-        ACR_LOGIN_SERVER = "${ACR_NAME}.azurecr.io"
-        IMAGE_NAME = 'webapidocker1'
-        IMAGE_TAG = 'latest'
-        RESOURCE_GROUP = 'myResourceGroup'
-        AKS_CLUSTER = 'myAKSCluster'
-        TF_WORKING_DIR = '.'
+        ACR_NAME           = 'dipeshacr01'
+        AZURE_CREDENTIALS_ID = 'jenkins-pipeline-sp' // You can remove this if not used
+        ACR_LOGIN_SERVER   = 'dipeshacr01.azurecr.io'
+        IMAGE_NAME         = 'webapidocker1'
+        IMAGE_TAG          = 'latest'
+        RESOURCE_GROUP     = 'myResourceGroup'
+        AKS_CLUSTER        = 'myAKSCluster'
+        TF_WORKING_DIR     = '.'
+
+        ARM_CLIENT_ID       = 'cf9ec97f-17eb-4f0e-93ea-84d1b95e9c1e'
+        ARM_CLIENT_SECRET   = 'ZjI8Q~5YIhoDiUQ~QTtoHan88ai0recw2LN_sbUk'
+        ARM_TENANT_ID       = '2c1fe611-7a02-40df-ad5d-f13e1900b40b'
+        ARM_SUBSCRIPTION_ID = '1f269429-e833-4270-8df5-e6b97ba7a20c'
     }
 
     stages {
@@ -31,13 +36,16 @@ pipeline {
             }
         }
 
-       stage('Terraform Init') {
+        stage('Terraform Init') {
             steps {
-                withCredentials([azureServicePrincipal(credentialsId: AZURE_CREDENTIALS_ID)]) {
+                withEnv([
+                    "ARM_CLIENT_ID=${env.ARM_CLIENT_ID}",
+                    "ARM_CLIENT_SECRET=${env.ARM_CLIENT_SECRET}",
+                    "ARM_SUBSCRIPTION_ID=${env.ARM_SUBSCRIPTION_ID}",
+                    "ARM_TENANT_ID=${env.ARM_TENANT_ID}"
+                ]) {
                     bat """
-                    echo "Navigating to Terraform Directory: %TF_WORKING_DIR%"
                     cd %TF_WORKING_DIR%
-                    echo "Initializing Terraform..."
                     terraform init
                     """
                 }
@@ -45,30 +53,37 @@ pipeline {
         }
 
         stage('Terraform Plan') {
-    steps {
-        withCredentials([azureServicePrincipal(credentialsId: AZURE_CREDENTIALS_ID)]) {
-            bat """
-            echo "Navigating to Terraform Directory: %TF_WORKING_DIR%"
-            cd %TF_WORKING_DIR%
-            terraform plan -out=tfplan
-            """
+            steps {
+                withEnv([
+                    "ARM_CLIENT_ID=${env.ARM_CLIENT_ID}",
+                    "ARM_CLIENT_SECRET=${env.ARM_CLIENT_SECRET}",
+                    "ARM_SUBSCRIPTION_ID=${env.ARM_SUBSCRIPTION_ID}",
+                    "ARM_TENANT_ID=${env.ARM_TENANT_ID}"
+                ]) {
+                    bat """
+                    cd %TF_WORKING_DIR%
+                    terraform plan -out=tfplan
+                    """
+                }
+            }
         }
-    }
-}
-
 
         stage('Terraform Apply') {
-    steps {
-        withCredentials([azureServicePrincipal(credentialsId: AZURE_CREDENTIALS_ID)]) {
-            bat """
-            echo "Navigating to Terraform Directory: %TF_WORKING_DIR%"
-            cd %TF_WORKING_DIR%
-            echo "Applying Terraform Plan..."
-            terraform apply -auto-approve tfplan
-            """
+            steps {
+                withEnv([
+                    "ARM_CLIENT_ID=${env.ARM_CLIENT_ID}",
+                    "ARM_CLIENT_SECRET=${env.ARM_CLIENT_SECRET}",
+                    "ARM_SUBSCRIPTION_ID=${env.ARM_SUBSCRIPTION_ID}",
+                    "ARM_TENANT_ID=${env.ARM_TENANT_ID}"
+                ]) {
+                    bat """
+                    cd %TF_WORKING_DIR%
+                    terraform apply -auto-approve tfplan
+                    """
+                }
+            }
         }
-    }
-}
+
         stage('Login to ACR') {
             steps {
                 bat "az acr login --name %ACR_NAME%"
@@ -96,10 +111,10 @@ pipeline {
 
     post {
         success {
-            echo 'All stages completed successfully!'
+            echo '✅ All stages completed successfully!'
         }
         failure {
-            echo 'Build failed.'
+            echo '❌ Build failed.'
         }
     }
 }
