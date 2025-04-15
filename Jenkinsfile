@@ -3,7 +3,6 @@ pipeline {
 
     environment {
         ACR_NAME           = 'dipeshacr01'
-        AZURE_CREDENTIALS_ID = 'jenkins-pipeline-sp' // You can remove this if not used
         ACR_LOGIN_SERVER   = 'dipeshacr01.azurecr.io'
         IMAGE_NAME         = 'webapidocker1'
         IMAGE_TAG          = 'latest'
@@ -11,6 +10,7 @@ pipeline {
         AKS_CLUSTER        = 'myAKSCluster'
         TF_WORKING_DIR     = '.'
 
+        // Azure SP Credentials
         ARM_CLIENT_ID       = 'cf9ec97f-17eb-4f0e-93ea-84d1b95e9c1e'
         ARM_CLIENT_SECRET   = 'ZjI8Q~5YIhoDiUQ~QTtoHan88ai0recw2LN_sbUk'
         ARM_TENANT_ID       = '2c1fe611-7a02-40df-ad5d-f13e1900b40b'
@@ -84,9 +84,16 @@ pipeline {
             }
         }
 
-        stage('Login to ACR') {
+        stage('Login to ACR using SP') {
             steps {
-                bat "az acr login --name %ACR_NAME%"
+                bat """
+                az login --service-principal ^
+                  --username %ARM_CLIENT_ID% ^
+                  --password %ARM_CLIENT_SECRET% ^
+                  --tenant %ARM_TENANT_ID%
+
+                az acr login --name %ACR_NAME%
+                """
             }
         }
 
@@ -98,7 +105,10 @@ pipeline {
 
         stage('Get AKS Credentials') {
             steps {
-                bat "az aks get-credentials --resource-group %RESOURCE_GROUP% --name %AKS_CLUSTER% --overwrite-existing"
+                bat """
+                az aks get-credentials --resource-group %RESOURCE_GROUP% ^
+                --name %AKS_CLUSTER% --overwrite-existing
+                """
             }
         }
 
